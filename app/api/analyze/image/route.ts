@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { createGroq } from '@ai-sdk/groq';
+import { generateText } from 'ai';
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
 
 export const runtime = "nodejs";
 
@@ -19,47 +23,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    const base64Image = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const arrayBuffer = await file.arrayBuffer();
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
-        "X-Title": process.env.OPENROUTER_SITE_NAME || "my-nextjs-ai-chat",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini", // a smaller vision-capable model on OpenRouter
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${file.type || "image/jpeg"};base64,${base64Image}`,
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 1000,
-      }),
+    const { text } = await generateText({
+      model: groq('llama-3.2-11b-vision-preview'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image', image: arrayBuffer },
+          ],
+        },
+      ],
     });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data?.error?.message || "Vision API request failed" },
-        { status: response.status }
-      );
-    }
-
     return NextResponse.json({
-      analysis: data?.choices?.[0]?.message?.content || "No analysis",
+      analysis: text,
     });
   } catch (error) {
     console.error("Image analysis error:", error);

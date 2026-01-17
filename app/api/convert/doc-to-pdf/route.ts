@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       }
     )) as Buffer;
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${outputFilename}"`,
